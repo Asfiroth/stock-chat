@@ -1,0 +1,153 @@
+version: '3.9'
+
+services:
+
+  sqlserver:
+    image: mcr.microsoft.com/azure-sql-edge
+    container_name: sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Password123
+    ports:
+      - 1433:1433
+    volumes:
+      - sqlserver:/var/opt/mssql
+    networks:
+      - stocknet
+  
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - 27017:27017
+    volumes:
+      - mongodb:/data/db
+    networks:
+      - stocknet
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - 5672:5672
+      - 15672:15672 
+    networks:
+      - stocknet
+
+  identity:
+    image: asfiroth/identity
+    build: 
+      context: ./src/
+      dockerfile: StockChat.Identity/Dockerfile
+    container_name: identity
+    entrypoint: /bin/sh -c "update-ca-certificates && dotnet StockChat.Identity.dll"
+    ports:
+      - 6009:6009
+    environment:
+      - ConnectionStrings__DefaultConnection=Data Source=sqlserver,1433;User ID=sa;Password=Password123;Initial Catalog=Identity;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Connection Timeout=30;;Persist Security Info=False;
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=https://+:6009
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=P@ssw0rd
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/localhost.pfx
+    volumes:
+      - ./localhost.pfx:/https/localhost.pfx:ro
+      - ./localhost.crt:/usr/local/share/ca-certificates/localhost.crt:ro
+    depends_on:
+      - sqlserver
+    networks:
+      - stocknet
+
+  chat:
+    image: asfiroth/chat
+    build: 
+      context: ./src/
+      dockerfile: StockChat.Api/Dockerfile
+    container_name: chat
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=https://+:6010
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=P@ssw0rd
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/localhost.pfx
+      - IdentityAuthority=https://identity:6009
+      - MongoOptions__Connection=mongodb://mongodb:27017
+      - MongoOptions__Database=stockchat
+      - MongoOptions__Collection=messages
+      - RabbitOptions__Connection=ampq://guest:guest@rabbitmq:5672
+      - RabbitOptions__DecodeQueueName=stock-decode-queue
+      - RabbitOptions__DecodeExchangeName=stock.decode.exchange
+      - RabbitOptions__DecodeRoutingKey=decode
+      - RabbitOptions__ResponseQueueName=stock-response-queue
+      - RabbitOptions__ResponseExchangeName=stock.response.exchange
+      - RabbitOptions__ResponseRoutingKey=response
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - identity
+    ports:
+      - 6010:6010
+    volumes:
+      - ./localhost.pfx:/https/localhost.pfx:ro
+      - ./localhost.crt:/usr/local/share/ca-certificates/localhost.crt:ro
+    networks:
+      - stocknet
+
+  web:
+    image: asfiroth/web
+    build: 
+      context: ./src/
+      dockerfile: StockChat.Web/Dockerfile
+    container_name: web
+    entrypoint: /bin/sh -c "update-ca-certificates && dotnet StockChat.Web.dll"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=https://+:6011
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=P@ssw0rd
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/localhost.pfx
+      - Authentication__Authority=https://identity:6009
+      - Authentication__ClientId=webapp
+      - Authentication__ClientSecret=49C1A7E1-0C79-4A89-A3D6-A37998FB86B0
+      - Authentication__Scopes=chatapi.read chatapi.write
+      - ChatApi=https://chat:6010
+    volumes:
+      - ./localhost.pfx:/https/localhost.pfx:ro
+      - ./localhost.crt:/usr/local/share/ca-certificates/localhost.crt:ro
+    depends_on:
+      - chat
+      - identity
+    ports:
+      - 6011:6011
+    networks:
+      - stocknet
+
+  stock:
+    image: asfiroth/stock
+    restart: on-failure
+    build: 
+      context: ./src/
+      dockerfile: StockChat.Stock/Dockerfile
+    container_name: stock
+    depends_on:
+      - chat
+      - identity
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - RabbitOptions__Connection=ampq://guest:guest@rabbitmq:5672
+      - RabbitOptions__DecodeQueueName=stock-decode-queue
+      - RabbitOptions__DecodeExchangeName=stock.decode.exchange
+      - RabbitOptions__DecodeRoutingKey=decode
+      - RabbitOptions__ResponseQueueName=stock-response-queue
+      - RabbitOptions__ResponseExchangeName=stock.response.exchange
+      - RabbitOptions__ResponseRoutingKey=response
+    networks:
+      - stocknet
+
+volumes:
+  sqlserver:
+    driver: local
+  mongodb:
+    driver: local
+
+networks:
+  stocknet:
+    driver: bridge
