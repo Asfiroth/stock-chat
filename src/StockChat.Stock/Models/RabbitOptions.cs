@@ -1,4 +1,4 @@
-namespace StockChat.Api.Models;
+namespace StockChat.Stock.Models;
 
 public class RabbitOptions
 {

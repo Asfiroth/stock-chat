@@ -1,11 +1,24 @@
+using System.Net.Http.Headers;
 using StockChat.Stock;
+using StockChat.Stock.Models;
+using StockChat.Stock.Services;
 
-IHost host = Host.CreateDefaultBuilder(args)
-    .ConfigureServices(services =>
+var builder = Host.CreateDefaultBuilder(args);
+
+builder.ConfigureServices((hostContext, services) =>
+{
+    services.AddHttpClient( "stockApi", client =>
     {
-        //services.Configure<WorkerOptions>(services.confi.GetSection("WorkerOptions"));
-        services.AddHostedService<Worker>();
-    })
-    .Build();
+        var apiRoute = hostContext.Configuration["StockApi"];
+        client.BaseAddress = new Uri(apiRoute ?? string.Empty);
+        client.DefaultRequestHeaders.Clear();
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/csv"));
+    });
+    services.AddScoped<StockValueCheckService>();
+    services.AddHostedService<Worker>();
+    services.Configure<RabbitOptions>(hostContext.Configuration.GetSection("RabbitOptions"));
+});
+
+var host = builder.Build();
 
 host.Run();
