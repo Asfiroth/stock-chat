@@ -15,10 +15,12 @@ public class DecodeStockCommand : ICommand
 
 public class DecodeStockMessage : ICommandHandler<DecodeStockCommand>
 {
+    private readonly ILogger<DecodeStockMessage> _logger;
     private readonly IOptions<RabbitOptions> _options;
-    public DecodeStockMessage(IOptions<RabbitOptions> options)
+    public DecodeStockMessage(IOptions<RabbitOptions> options, ILogger<DecodeStockMessage> logger)
     {
         _options = options;
+        _logger = logger;
     }
     
     public ValueTask<Unit> Handle(DecodeStockCommand command, CancellationToken cancellationToken)
@@ -33,9 +35,11 @@ public class DecodeStockMessage : ICommandHandler<DecodeStockCommand>
         
         //for demo purposes, we will create the exchange and queue here
         //in a real world scenario, we would create the exchange and queue in the infrastructure
-        channel.ExchangeDeclare(_options.Value.DecodeExchangeName, ExchangeType.Direct, true);
-        channel.QueueDeclare(_options.Value.DecodeQueueName, true, false, false);
+        channel.ExchangeDeclare(_options.Value.DecodeExchangeName, ExchangeType.Direct);
+        channel.QueueDeclare(_options.Value.DecodeQueueName, false, false, false);
         channel.QueueBind(_options.Value.DecodeQueueName, _options.Value.DecodeExchangeName, _options.Value.DecodeRoutingKey);
+        
+        _logger.Log(LogLevel.Information, "Sending message to decode stock company: {0}", command.StockCompany);
         
         var message = new StockMessage
         {

@@ -1,4 +1,5 @@
 @page
+
 @model ChatLobbyModel
 
 @{
@@ -7,3 +8,85 @@
 
 <h1>Chat Lobby</h1>
 
+<p>Welcome to the chat lobby @Model.MessageUser.Name !</p>
+
+<ul id="connected-users">
+</ul>
+
+<div class="row">
+    
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.js"></script>
+    <script type="text/javascript">
+    const connection = new signalR.HubConnectionBuilder().withUrl("@ViewData["ChatHub"]/chat").build();
+
+    @*connection.on("ReceiveMessage", function (user, message) {
+        const msg = message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const encodedMsg = user + " says " + msg;
+        const li = document.createElement("li");
+        li.textContent = encodedMsg;
+        document.getElementById("messagesList").appendChild(li);
+    });*@
+    
+    connection.on("SendConnectedToLobby", function (user){
+        
+        if (user.userId === "@Model.MessageUser.UserId") {
+            return;
+        }
+        console.info(user.userName + " has connected to the lobby");
+        const li = document.createElement("li");
+        li.textContent = user.userName;
+        document.getElementById("connected-users").appendChild(li);
+    });
+    
+    connection.on("SendStockChatMessage", function (message) {
+        console.info(message);
+    });
+
+    connection.start().then(function () {
+        
+        connection.send("ConnectToLobby").then(function () {
+            console.info("Connected to lobby");
+            connection.send("SendConnectedToLobby", { userId: "@Model.MessageUser.UserId", userName: "@Model.MessageUser.Name"  });
+            connection.send("AddStockChatGroup", "222").then(function () {
+                console.info("Added stock chat group");
+                connection.send("SendMessageToStockChat", { 
+                                id: "123",
+                                chatGroupId: "222", 
+                                senderId: "@Model.MessageUser.UserId", 
+                                senderName: "@Model.MessageUser.Name", 
+                                message: "/stock=aapl.us",
+                                sentTime: new Date()
+                });
+                
+                connection.send("SendMessageToStockChat", { 
+                                                id: "123",
+                                                chatGroupId: "222", 
+                                                senderId: "@Model.MessageUser.UserId", 
+                                                senderName: "@Model.MessageUser.Name", 
+                                                message: "Hello from chat lobby",
+                                                sentTime: new Date()
+                                });
+            }).catch(function (err) {
+                return console.error(err.toString());
+            });
+            
+        }).catch(function (err) {
+            return console.error(err.toString());
+        });
+    }).catch(function (err) {
+        return console.error(err.toString());
+    });
+
+    @*document.getElementById("sendButton").addEventListener("click", function (event) {
+        const user = document.getElementById("userInput").value;
+        const message = document.getElementById("messageInput").value;
+        connection.invoke("SendMessage", user, message).catch(function (err) {
+            return console.error(err.toString());
+        });
+        event.preventDefault();
+    });*@
+</script>
+}

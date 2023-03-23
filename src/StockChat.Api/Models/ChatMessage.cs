@@ -3,7 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace StockChat.Api.Models;
 
-public class ChatMessage
+public class ChatMessage : IEntity
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]

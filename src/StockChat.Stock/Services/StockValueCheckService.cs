@@ -1,8 +1,8 @@
+using System.Globalization;
 using System.Text;
+using CsvHelper;
+using CsvHelper.Configuration;
 using StockChat.Stock.Models;
-using TinyCsvParser;
-using TinyCsvParser.Mapping;
-using TinyCsvParser.TypeConverter;
 
 namespace StockChat.Stock.Services;
 
@@ -25,13 +25,28 @@ public class StockValueCheckService
         if (!response.IsSuccessStatusCode) return 0;
         
         var csvStream = await response.Content.ReadAsStreamAsync();
-        
-        var csvParserOptions = new CsvParserOptions(true, ',');
-        var csvParser = new CsvParser<StockShareResponse>(csvParserOptions, new CsvStockShareResponseMapping());
 
-        var stockShares = csvParser.ReadFromStream(csvStream, Encoding.UTF8)
-            .Select(x => x.Result)
-            .ToList();
+        _logger.Log(LogLevel.Information, "Received csv stream from stock api");
+        
+        _logger.Log(LogLevel.Information, $"# of bytes in stream: {csvStream.Length}");
+        
+        var configuration = new CsvConfiguration(CultureInfo.InvariantCulture)
+        {
+            Delimiter = ",",
+            Comment = '#',
+            HasHeaderRecord = false
+        };
+        
+        var stockShares = new List<StockShareResponse>();
+        
+        using (var reader = new StreamReader(csvStream))
+        using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
+        {
+            csv.Context.RegisterClassMap<CsvStockShareResponseMapping>();
+            stockShares = csv.GetRecords<StockShareResponse>().ToList();
+        }
+        
+        _logger.Log(LogLevel.Information, "Parsed csv stream from stock api");
         
         if (!stockShares.Any()) return 0;
         
@@ -46,17 +61,17 @@ public class StockValueCheckService
 }
 
 // let's setup the mapping for the csv file here cause it's only used in this service
-public class CsvStockShareResponseMapping : CsvMapping<StockShareResponse>
+public class CsvStockShareResponseMapping : ClassMap<StockShareResponse>
 {
-    public CsvStockShareResponseMapping() : base()
+    public CsvStockShareResponseMapping()
     {
-        MapProperty(0, x => x.Symbol);
-        MapProperty(1, x => x.Date);
-        MapProperty(2, x => x.Time);
-        MapProperty(3, x => x.Open);
-        MapProperty(4, x => x.High);
-        MapProperty(5, x => x.Low);
-        MapProperty(5, x => x.Close);
-        MapProperty(5, x => x.Volume);
+        Map(x => x.Symbol).Index(0);
+        Map(x => x.Date).Index(1);
+        Map( x => x.Time).Index(2);
+        Map( x => x.Open).Index(3);
+        Map( x => x.High).Index(4);
+        Map(x => x.Low).Index(5);
+        Map( x => x.Close).Index(6);
+        Map( x => x.Volume).Index(7);
     }
 }

@@ -3,8 +3,8 @@ using StockChat.Api.Models;
 
 namespace StockChat.Api.Data;
 
-public interface IRepository<T>
+public interface IRepository<T> where T : IEntity
 {
     Task<List<T>> GetFiltered(Expression<Func<T, bool>> filter);
-    Task Register(T entity);
+    Task<string> Register(T entity);
 }

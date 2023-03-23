@@ -7,11 +7,13 @@ namespace StockChat.Api.Hubs;
 
 public class ChatHub : Hub
 {
+    private readonly ILogger<ChatHub> _logger;
     private readonly IMediator _mediator;
     
-    public ChatHub(IMediator mediator)
+    public ChatHub(IMediator mediator, ILogger<ChatHub> logger)
     {
         _mediator = mediator;
+        _logger = logger;
     }
     
     public Task ConnectToLobby()
@@ -43,32 +45,39 @@ public class ChatHub : Hub
     {
         if (message.ChatGroupId is null) return;
         if (message.Message is null) return;
-        if (message.Id is null) return;
         if (message.SenderId is null) return;
-
+        if (message.SenderName is null) return;
+        
+        _logger.Log(LogLevel.Information, "Received message from chat group: {0}", message.ChatGroupId);
+        _logger.Log(LogLevel.Information, "Received message from chat group: {0}", message.Message);
+        
         if (message.Message.Contains("stock", StringComparison.InvariantCultureIgnoreCase))
         {
             var command = new DecodeStockCommand
             {
                 ChatGroupId = message.ChatGroupId,
-                StockCompany = message.Message
+                StockCompany = message.Message.Replace("/stock=", "")
             };
 
             await _mediator.Send(command);
             return; 
         }
         
-        await Clients.Group(message.ChatGroupId).SendAsync("SendStockChatMessage", message);
-
         var chatCommand = new RegisterChatMessageCommand
         {
             ChatGroupId = message.ChatGroupId,
             Message = message.Message,
-            Id = message.Id,
             SenderId = message.SenderId,
+            SenderName = message.SenderName,
             SentTime = message.SentTime
         };
         
-        await _mediator.Send(chatCommand);
+        var id = await _mediator.Send(chatCommand);
+        
+        message.Id = id;
+        
+        await Clients.Group(message.ChatGroupId).SendAsync("SendStockChatMessage", message);
+
+        
     }
 }

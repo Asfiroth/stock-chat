@@ -5,6 +5,7 @@ services:
   sqlserver:
     image: mcr.microsoft.com/azure-sql-edge
     container_name: sqlserver
+    restart: always
     environment:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=Password123
@@ -18,6 +19,7 @@ services:
   mongodb:
     image: mongo:latest
     container_name: mongodb
+    restart: always
     ports:
       - 27017:27017
     volumes:
@@ -42,6 +44,7 @@ services:
       dockerfile: StockChat.Identity/Dockerfile
     container_name: identity
     entrypoint: /bin/sh -c "update-ca-certificates && dotnet StockChat.Identity.dll"
+    restart: on-failure
     ports:
       - 6009:6009
     environment:
@@ -64,6 +67,7 @@ services:
       context: ./src/
       dockerfile: StockChat.Api/Dockerfile
     container_name: chat
+    restart: on-failure
     entrypoint: /bin/sh -c "update-ca-certificates && dotnet StockChat.Api.dll"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
@@ -130,6 +134,7 @@ services:
     depends_on:
       - chat
       - identity
+      - rabbitmq
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - StockApi=https://stooq.com

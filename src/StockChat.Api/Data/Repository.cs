@@ -1,11 +1,12 @@
 using System.Linq.Expressions;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using StockChat.Api.Models;
 
 namespace StockChat.Api.Data;
 
-public class Repository<T> : IRepository<T>
+public class Repository<T> : IRepository<T> where T : IEntity
 {
     private readonly IMongoDatabase _mongoDb;
     
@@ -13,7 +14,7 @@ public class Repository<T> : IRepository<T>
     {
         _mongoDb = new MongoClient(options.Value.Connection).GetDatabase(options.Value.Database);
     }
-
+    
     public async Task<List<T>> GetFiltered(Expression<Func<T, bool>> filter)
     {
         var collection = await GetOrCreateCollectionAsync();
@@ -22,18 +23,28 @@ public class Repository<T> : IRepository<T>
         return result;
     }
 
-    public async Task Register(T entity)
+    public async Task<string> Register(T entity)
     {
+        entity.Id = ObjectId.GenerateNewId().ToString();
         var collection = await GetOrCreateCollectionAsync();
         await collection.InsertOneAsync(entity);
+
+        return entity.Id;
     }
     
     private async Task<IMongoCollection<T>> GetOrCreateCollectionAsync()
     {
-        var collection = _mongoDb.GetCollection<T>(typeof(T).Name);
-        if (collection != null) return collection;
+        var exists = await CollectionExistsAsync(typeof(T).Name);
+        
+        if (exists) return _mongoDb.GetCollection<T>(typeof(T).Name);
         await _mongoDb.CreateCollectionAsync(typeof(T).Name);
-        collection = _mongoDb.GetCollection<T>(typeof(T).Name);
-        return collection;
+        return _mongoDb.GetCollection<T>(typeof(T).Name);
+    }
+    
+    private async Task<bool> CollectionExistsAsync(string collectionName)
+    {
+        var filter = new BsonDocument("name", collectionName);
+        var collections = await _mongoDb.ListCollectionsAsync(new ListCollectionsOptions { Filter = filter });
+        return await collections.AnyAsync();
     }
 }
