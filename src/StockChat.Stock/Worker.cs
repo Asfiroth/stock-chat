@@ -28,7 +28,7 @@ public class Worker : BackgroundService
     {
         var connectionFactory = new ConnectionFactory();
         connectionFactory.Uri = new Uri(_options.Value.Connection);
-        connectionFactory.ClientProvidedName = "StockChat.Api";
+        connectionFactory.ClientProvidedName = "StockChat.Stock";
         
         _connection = connectionFactory.CreateConnection();
         _channel = _connection.CreateModel();

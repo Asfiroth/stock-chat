@@ -1,9 +1,10 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
 using StockChat.Api.Data;
+using StockChat.Api.Extensions;
 using StockChat.Api.Hubs;
 using StockChat.Api.Models;
+using StockChat.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,14 +12,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 var configuration = builder.Configuration;
 
-IdentityModelEventSource.ShowPII = true;
-
 builder.Services.AddMediator();
 
 builder.Services.Configure<MongoOptions>(configuration.GetSection("MongoOptions"));
 builder.Services.Configure<RabbitOptions>(configuration.GetSection("RabbitOptions"));
 
 builder.Services.AddTransient(typeof(IRepository<>), typeof(Repository<>));
+
+builder.Services.AddSingleton<RabbitListenerService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
@@ -47,6 +48,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseRabbitListener();
 
 app.UseAuthentication();
 app.UseAuthorization();

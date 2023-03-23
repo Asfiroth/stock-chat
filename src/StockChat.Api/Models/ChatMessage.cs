@@ -12,6 +12,8 @@ public class ChatMessage
     public string? ChatGroupId { get; set; }
     
     public string? SenderId { get; set; }
+
+    public string? SenderName { get; set; }
     
     public string? Message { get; set; }
     

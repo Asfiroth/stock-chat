@@ -26,7 +26,7 @@ public class DecodeStockMessage : ICommandHandler<DecodeStockCommand>
         // send to rabbit mq to be processed
         var connectionFactory = new ConnectionFactory();
         connectionFactory.Uri = new Uri(_options.Value.Connection);
-        connectionFactory.ClientProvidedName = "StockChat.Api";
+        connectionFactory.ClientProvidedName = "StockChat.Api.DecodeRequester";
         
         var connection = connectionFactory.CreateConnection();
         var channel = connection.CreateModel();

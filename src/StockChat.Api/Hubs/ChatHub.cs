@@ -14,14 +14,29 @@ public class ChatHub : Hub
         _mediator = mediator;
     }
     
-    public async Task AddStockChatGroup(string chatGroupId)
+    public Task ConnectToLobby()
     {
-        await Groups.AddToGroupAsync(Context.ConnectionId, chatGroupId);
+        return Groups.AddToGroupAsync(Context.ConnectionId, "lobby");
+    }
+    
+    public Task DisconnectFromLobby()
+    {
+        return Groups.RemoveFromGroupAsync(Context.ConnectionId, "lobby");
+    }
+    
+    public Task SendConnectedToLobby(UserConnectedMessage user)
+    {
+        return Clients.Group("lobby").SendAsync("SendConnectedToLobby", user);
+    }
+    
+    public Task AddStockChatGroup(string chatGroupId)
+    {
+        return Groups.AddToGroupAsync(Context.ConnectionId, chatGroupId);
     }
 
-    public async Task RemoveFromStockChatGroup(string chatGroupId)
+    public Task RemoveFromStockChatGroup(string chatGroupId)
     {
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, chatGroupId);
+        return Groups.RemoveFromGroupAsync(Context.ConnectionId, chatGroupId);
     }
     
     public async Task SendMessageToStockChat(ChatMessage message)
