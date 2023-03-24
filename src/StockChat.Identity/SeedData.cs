@@ -140,5 +140,34 @@ public class SeedData
         throw new Exception(result.Errors.First().Description);
       }
     }
+    
+    var john = userMgr.FindByNameAsync("john").Result;
+    if (john == null)
+    {
+      john = new IdentityUser
+      {
+        UserName = "john",
+        Email = "JohnWick@email.com",
+        EmailConfirmed = true
+      };
+      var result = userMgr.CreateAsync(john, "Pass123$").Result;
+      if (!result.Succeeded)
+      {
+        throw new Exception(result.Errors.First().Description);
+      }
+
+      result = userMgr.AddClaimsAsync(john, new Claim[]
+      {
+        new Claim(JwtClaimTypes.Name, "John Wick"),
+        new Claim(JwtClaimTypes.GivenName, "John"),
+        new Claim(JwtClaimTypes.FamilyName, "Wick"),
+        new Claim(JwtClaimTypes.WebSite, "http://john.com"),
+        new Claim("location", "somewhere")
+      }).Result;
+      if (!result.Succeeded)
+      {
+        throw new Exception(result.Errors.First().Description);
+      }
+    }
   }
 }

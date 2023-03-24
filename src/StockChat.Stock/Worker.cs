@@ -87,8 +87,6 @@ public class Worker : BackgroundService
             
             var body = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(response));
             _responseChannel.BasicPublish(_options.Value.ResponseExchangeName, _options.Value.ResponseRoutingKey, null, body);
-            
-            _receiveChannel.BasicAck(args.DeliveryTag, false);
         }
         catch (Exception e)
         {

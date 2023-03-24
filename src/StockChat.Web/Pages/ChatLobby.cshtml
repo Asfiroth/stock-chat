@@ -10,12 +10,22 @@
 
 <p>Welcome to the chat lobby @Model.MessageUser.Name !</p>
 
-<ul id="connected-users">
-</ul>
 
-<div class="row">
-    
+<!-- segmented ui for messages and people connect to the lobby -->
+
+<div class="container">
+    <div class="flex-column">
+        <ul id="connected-users">
+        </ul>
+    </div>
+    <div class="flex-column">
+        <ul id="messagesList">
+            <li>messge</li>
+        </ul>
+    </div>
 </div>
+
+
 
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.js"></script>
@@ -37,6 +47,7 @@
         }
         console.info(user.userName + " has connected to the lobby");
         const li = document.createElement("li");
+        li.setAttribute("data-user-id", user.userId);
         li.textContent = user.userName;
         document.getElementById("connected-users").appendChild(li);
     });
