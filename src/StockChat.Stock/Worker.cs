@@ -70,28 +70,43 @@ public class Worker : BackgroundService
     private async void OnStockDecodingRequestReceived(object? sender, BasicDeliverEventArgs args)
     {
         var content = Encoding.UTF8.GetString(args.Body.ToArray());
-        
         _logger.Log(LogLevel.Information, "Received message to decode stock company: {0}", content);
-        
         var message = JsonConvert.DeserializeObject<StockMessage>(content);
         
-        if (message == null)
-            throw new Exception("Invalid message received");
-        
-        // do some work
-        var stockPrice = await _stockValueCheckService.CheckStock(message.StockCompany);
-            
-        // send response
-        var response = new StockResponse
+        try
         {
-            ChatGroupId = message.ChatGroupId,
-            Message = $"{message.StockCompany.ToUpper()} is {stockPrice:C} per share"
-        };
+            // decode stock company
+            var stockPrice = await _stockValueCheckService.CheckStock(message.StockCompany);
             
-        var body = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(response));
-        _responseChannel.BasicPublish(_options.Value.ResponseExchangeName, _options.Value.ResponseRoutingKey, null, body);
+            // send response
+            var response = new StockResponse
+            {
+                ChatGroupId = message.ChatGroupId,
+                Message = $"{message.StockCompany.ToUpper()} is {stockPrice:C} per share"
+            };
             
-        _receiveChannel.BasicAck(args.DeliveryTag, false);
+            var body = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(response));
+            _responseChannel.BasicPublish(_options.Value.ResponseExchangeName, _options.Value.ResponseRoutingKey, null, body);
+            
+            _receiveChannel.BasicAck(args.DeliveryTag, false);
+        }
+        catch (Exception e)
+        {
+            _logger.Log(LogLevel.Error, e, "Error while processing message");
+            
+            var response = new StockResponse
+            {
+                ChatGroupId = message.ChatGroupId,
+                Message = "Could not decode stock company, are you sure you typed it correctly?"
+            };
+            
+            var body = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(response));
+            _responseChannel.BasicPublish(_options.Value.ResponseExchangeName, _options.Value.ResponseRoutingKey, null, body);
+        }
+        finally
+        {
+            _receiveChannel.BasicAck(args.DeliveryTag, false);
+        }
     }
 
     public override Task StopAsync(CancellationToken cancellationToken)
