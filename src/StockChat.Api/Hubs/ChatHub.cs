@@ -1,6 +1,8 @@
 using Mediator;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using StockChat.Api.Handlers.Commands;
+using StockChat.Api.Handlers.Queries;
 using StockChat.Api.Models;
 
 namespace StockChat.Api.Hubs;
@@ -26,19 +28,31 @@ public class ChatHub : Hub
         return Groups.RemoveFromGroupAsync(Context.ConnectionId, "lobby");
     }
     
-    public Task SendConnectedToLobby(UserConnectedMessage user)
+    public async Task SendConnectedToLobby(UserConnectedMessage user)
     {
-        return Clients.Group("lobby").SendAsync("SendConnectedToLobby", user);
+        var command = new RegisterPeopleAtLobbyCommand
+        {
+            UserId = user.UserId,
+            UserName = user.UserName
+        };
+        
+        await _mediator.Send(command);
+        
+        await Clients.Group("lobby").SendAsync("SendConnectedToLobby", user);
     }
     
-    public Task AddStockChatGroup(string chatGroupId)
+    public async Task AddStockChatGroup(string chatGroupId)
     {
-        return Groups.AddToGroupAsync(Context.ConnectionId, chatGroupId);
+        var chatGroup = await GetRealGroupId(chatGroupId);
+        
+        await Groups.AddToGroupAsync(Context.ConnectionId, chatGroup);
     }
 
-    public Task RemoveFromStockChatGroup(string chatGroupId)
+    public async Task RemoveFromStockChatGroup(string chatGroupId)
     {
-        return Groups.RemoveFromGroupAsync(Context.ConnectionId, chatGroupId);
+        var chatGroup = await GetRealGroupId(chatGroupId);
+        
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, chatGroup);
     }
     
     public async Task SendMessageToStockChat(ChatMessage message)
@@ -51,7 +65,9 @@ public class ChatHub : Hub
         _logger.Log(LogLevel.Information, "Received message from chat group: {0}", message.ChatGroupId);
         _logger.Log(LogLevel.Information, "Received message from chat group: {0}", message.Message);
         
-        if (message.Message.Contains("stock", StringComparison.InvariantCultureIgnoreCase))
+        message.ChatGroupId = await GetRealGroupId(message.ChatGroupId);
+        
+        if (message.Message.StartsWith("/stock=", StringComparison.InvariantCultureIgnoreCase))
         {
             var command = new DecodeStockCommand
             {
@@ -77,7 +93,19 @@ public class ChatHub : Hub
         message.Id = id;
         
         await Clients.Group(message.ChatGroupId).SendAsync("SendStockChatMessage", message);
-
-        
     }
+
+
+    private async Task<string> GetRealGroupId(string chatGroupId)
+    {
+        var command = new GetChatGroupByMembersQuery
+        {
+            FakeGroupId = chatGroupId
+        };
+        
+        var chatGroup = await _mediator.Send(command);
+        
+        return chatGroup;
+    }
+    
 }

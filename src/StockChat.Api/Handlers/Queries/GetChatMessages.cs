@@ -27,7 +27,7 @@ public class GetChatMessages : IQueryHandler<GetChatMessagesQuery, List<ChatMess
             // get from mongo db
             var chatMessages = await _repository.GetFiltered(x => x.ChatGroupId == query.ChatGroupId);
         
-            var top50 = chatMessages.OrderByDescending(x => x.SentTime).Take(50).ToList();
+            var top50 = chatMessages.OrderBy(x => x.SentTime).Take(50).ToList();
         
             return top50;
         }

@@ -14,7 +14,12 @@ public class Repository<T> : IRepository<T> where T : IEntity
     {
         _mongoDb = new MongoClient(options.Value.Connection).GetDatabase(options.Value.Database);
     }
-    
+
+    public Task<List<T>> GetAll()
+    {
+        return GetFiltered(x => true);
+    }
+
     public async Task<List<T>> GetFiltered(Expression<Func<T, bool>> filter)
     {
         var collection = await GetOrCreateCollectionAsync();

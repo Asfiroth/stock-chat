@@ -6,6 +6,69 @@
     ViewData["Title"] = "Chat Lobby";
 }
 
+<style>
+		.chat-container {
+			display: flex;
+			flex-direction: row;
+			padding: 20px;
+			background-color: #f5f5f5;
+		}
+		
+		.list-group-item {
+			cursor: pointer;
+		}
+		
+		.list-group-item:hover {
+			background-color: #ddd;
+		}
+
+		.chat-col {
+			height: 100%;
+			overflow: hidden;
+		}
+
+		.chat-header {
+			background-color: #005a9e;
+			color: #fff;
+			padding: 15px;
+			font-size: 24px;
+			font-weight: bold;
+			text-align: center;
+			border-bottom: 1px solid #ddd;
+		}
+
+		.chat-body {
+			height: 500px;
+			overflow-y: scroll;
+			padding: 15px;
+		}
+
+		.chat-message {
+			margin-bottom: 20px;
+		}
+
+		.sender {
+			font-weight: bold;
+			margin-bottom: 5px;
+		}
+
+		.timestamp {
+			font-size: 12px;
+			color: #aaa;
+			margin-bottom: 5px;
+		}
+
+		.message {
+			background-color: #fff;
+			border-radius: 10px;
+			padding: 10px;
+		}
+
+		.form-group {
+			margin-bottom: 10px;
+		}
+	</style>
+
 <h1>Chat Lobby</h1>
 
 <p>Welcome to the chat lobby @Model.MessageUser.Name !</p>
@@ -13,77 +76,186 @@
 
 <!-- segmented ui for messages and people connect to the lobby -->
 
-<div class="container">
-    <div class="flex-column">
-        <ul id="connected-users">
-        </ul>
+<div class="container-fluid chat-container">
+		<div class="col-4 chat-col">
+			<div class="chat-header">Connected Users</div>
+			<ul class="list-group" id="connected-users">
+			</ul>
+		</div>
+		<div class="col-8 chat-col">
+			<div class="chat-header" id="chat-header">None selected</div>
+			<div class="chat-body" id="message-list">
+			</div>
+            <div>
+                <div class="form-group">
+                    <label for="message">Type your message:</label>
+                    <textarea class="form-control" id="message" rows="3"></textarea>
+                </div>
+                <button type="button" id="send-button" class="btn btn-primary">Send</button>
+            </div>
+        </div>
     </div>
-    <div class="flex-column">
-        <ul id="messagesList">
-            <li>messge</li>
-        </ul>
-    </div>
-</div>
 
-
+		
 
 @section Scripts {
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.js"></script>
-    <script type="text/javascript">
-    const connection = new signalR.HubConnectionBuilder().withUrl("@ViewData["ChatHub"]/chat").build();
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.js"></script>
+	<script type="text/javascript">
+	
+    const connection = new signalR.HubConnectionBuilder()
+    							  .withUrl("@ViewData["ChatHub"]/chat")
+    							  .build();
 
-    @*connection.on("ReceiveMessage", function (user, message) {
-        const msg = message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        const encodedMsg = user + " says " + msg;
-        const li = document.createElement("li");
-        li.textContent = encodedMsg;
-        document.getElementById("messagesList").appendChild(li);
-    });*@
-    
+	function onMessageCreate(message){
+		const div = document.createElement("div");
+		div.className = "chat-message";
+		
+		const senderDiv = document.createElement("div");
+		senderDiv.className = "sender";
+		senderDiv.textContent = message.senderName;
+		
+		const timestampDiv = document.createElement("div");
+		timestampDiv.className = "timestamp";
+		timestampDiv.textContent = new Date(message.sentTime).toLocaleString();
+		
+		const messageDiv = document.createElement("div");
+		messageDiv.className = "message";
+		
+		const p = document.createElement("p");
+		p.textContent = message.message;
+		
+		messageDiv.appendChild(p);
+		div.appendChild(senderDiv);
+		div.appendChild(timestampDiv);
+		div.appendChild(messageDiv);
+		
+		document.getElementById("message-list").appendChild(div);
+	}
+	
+	function onLobbyUserClick(event) {
+                
+		const userId = event.target.getAttribute("data-user-id");
+		
+		const newChatGroupId = "@Model.MessageUser.UserId" + "|" + userId;
+		
+		console.info("new chat group id " + newChatGroupId);
+		
+		const chatHeader = document.getElementById("chat-header");
+		
+		const currentChatGroupId = chatHeader.getAttribute("data-chat-group-id");
+		
+		if (currentChatGroupId === newChatGroupId) {
+			return;
+		}
+		
+		if (currentChatGroupId) {
+			connection.send("RemoveFromStockChatGroup", currentChatGroupId);
+		}
+		
+		chatHeader.setAttribute("data-chat-group-id", newChatGroupId);
+		chatHeader.textContent =  "Chat Room with:" + event.target.textContent;
+		
+		connection.send("AddStockChatGroup", newChatGroupId)
+					.then(function () {
+						
+						console.info("Added to stock chat group");
+						
+						$.ajax({
+							url: "/ChatLobby?handler=ChatMessages",
+							type: "GET",
+							data: { id: newChatGroupId },
+							success: function (data) {
+								console.info(data);
+								
+								document.getElementById("message-list").innerHTML = "";
+								
+								if (!data) {
+									return;
+								}
+								
+								data.forEach(function (message) {
+									onMessageCreate(message);
+								});
+							},
+							error: function (err) {
+								console.error(err);
+							}
+						});
+					})
+					.catch(function (err) {
+						return console.error(err.toString());
+					});
+		
+	   
+		console.info("new chat group id " + newChatGroupId);
+		event.preventDefault();
+	}
+	
+	function onConnectedUserCreate(user) {
+		
+		const liExists = document.querySelector(`[data-user-id="${user.userId}"]`);
+		
+		if (liExists) {
+			return;
+		}
+		
+		const li = document.createElement("li");
+		li.setAttribute("data-user-id", user.userId);
+		li.className = "list-group-item";
+		li.textContent = user.userName;
+		
+		li.addEventListener("click", onLobbyUserClick);
+		
+		document.getElementById("connected-users").appendChild(li);
+	}
+	
     connection.on("SendConnectedToLobby", function (user){
         
         if (user.userId === "@Model.MessageUser.UserId") {
             return;
         }
+        
         console.info(user.userName + " has connected to the lobby");
-        const li = document.createElement("li");
-        li.setAttribute("data-user-id", user.userId);
-        li.textContent = user.userName;
-        document.getElementById("connected-users").appendChild(li);
+        onConnectedUserCreate(user);
     });
-    
+	
     connection.on("SendStockChatMessage", function (message) {
-        console.info(message);
+		
+		console.info(message);
+		
+		onMessageCreate(message);
     });
 
     connection.start().then(function () {
-        
         connection.send("ConnectToLobby").then(function () {
             console.info("Connected to lobby");
-            connection.send("SendConnectedToLobby", { userId: "@Model.MessageUser.UserId", userName: "@Model.MessageUser.Name"  });
-            connection.send("AddStockChatGroup", "222").then(function () {
-                console.info("Added stock chat group");
-                connection.send("SendMessageToStockChat", { 
-                                id: "123",
-                                chatGroupId: "222", 
-                                senderId: "@Model.MessageUser.UserId", 
-                                senderName: "@Model.MessageUser.Name", 
-                                message: "/stock=aappl.us",
-                                sentTime: new Date()
-                });
-                
-                connection.send("SendMessageToStockChat", { 
-                                                id: "123",
-                                                chatGroupId: "222", 
-                                                senderId: "@Model.MessageUser.UserId", 
-                                                senderName: "@Model.MessageUser.Name", 
-                                                message: "Hello from chat lobby",
-                                                sentTime: new Date()
-                                });
-            }).catch(function (err) {
-                return console.error(err.toString());
-            });
-            
+			
+			$.ajax({
+				url: "/ChatLobby?handler=PeopleAtLobby",
+				type: "GET",
+				success: function (data) {
+					console.info(data);
+					
+					if (!data) {
+						return;
+					}
+					
+					data.forEach(function (user) {
+						onConnectedUserCreate(user);
+					});
+				},
+				error: function (err) {
+					console.error(err);
+				}
+			});
+			
+            connection.send("SendConnectedToLobby", { userId: "@Model.MessageUser.UserId", userName: "@Model.MessageUser.Name"  })
+            .then(function () {
+				console.info("Sent connected to lobby");
+			})
+			.catch(function (err) {
+				return console.error(err.toString());
+			});
         }).catch(function (err) {
             return console.error(err.toString());
         });
@@ -91,13 +263,26 @@
         return console.error(err.toString());
     });
 
-    @*document.getElementById("sendButton").addEventListener("click", function (event) {
-        const user = document.getElementById("userInput").value;
-        const message = document.getElementById("messageInput").value;
-        connection.invoke("SendMessage", user, message).catch(function (err) {
+    document.getElementById("send-button").addEventListener("click", function (event) {
+        const message = document.getElementById("message").value;
+		
+		const chatHeader = document.getElementById("chat-header");
+		const chatGroupId = chatHeader.getAttribute("data-chat-group-id");
+		
+		const messageModel = {
+			chatGroupId: chatGroupId,
+			senderId: "@Model.MessageUser.UserId",
+			senderName: "@Model.MessageUser.Name",
+			message: message,
+			sentTime: new Date()
+		};
+		
+        connection.send("SendMessageToStockChat", messageModel).then(function (){
+			document.getElementById("message").value = "";
+        }).catch(function (err) {
             return console.error(err.toString());
         });
         event.preventDefault();
-    });*@
+    });
 </script>
 }

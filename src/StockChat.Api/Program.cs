@@ -28,7 +28,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.Audience = "chatapi";
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateAudience = false
+            ValidateAudience = true,
+            ValidateIssuer = true,
+            ValidateIssuerSigningKey = true
         };
     });
 

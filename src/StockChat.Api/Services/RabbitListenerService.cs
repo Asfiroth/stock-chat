@@ -27,50 +27,68 @@ public class RabbitListenerService
     
     public void Register()
     {
-        var connectionFactory = new ConnectionFactory();
-        connectionFactory.Uri = new Uri(_options.Value.Connection);
-        connectionFactory.ClientProvidedName = "StockChat.Api.ResponseListener";
+        try
+        {
+            var connectionFactory = new ConnectionFactory();
+            connectionFactory.Uri = new Uri(_options.Value.Connection);
+            connectionFactory.ClientProvidedName = "StockChat.Api.ResponseListener";
         
-        _connection = connectionFactory.CreateConnection();
-        _channel = _connection.CreateModel();
+            _connection = connectionFactory.CreateConnection();
+            _channel = _connection.CreateModel();
         
-        _channel.ExchangeDeclare(_options.Value.ResponseExchangeName, ExchangeType.Direct);
-        _channel.QueueDeclare(_options.Value.ResponseQueueName, false, false, false);
-        _channel.QueueBind(_options.Value.ResponseQueueName, _options.Value.ResponseExchangeName, _options.Value.ResponseRoutingKey);
+            _channel.ExchangeDeclare(_options.Value.ResponseExchangeName, ExchangeType.Direct);
+            _channel.QueueDeclare(_options.Value.ResponseQueueName, false, false, false);
+            _channel.QueueBind(_options.Value.ResponseQueueName, _options.Value.ResponseExchangeName, _options.Value.ResponseRoutingKey);
         
-        _channel.BasicQos(0, 1, false);
-        var consumer = new EventingBasicConsumer(_channel);
-        consumer.Received += OnStockDecodingResponseReceived;
+            _channel.BasicQos(0, 1, false);
+            var consumer = new EventingBasicConsumer(_channel);
+            consumer.Received += OnStockDecodingResponseReceived;
         
-        _consumerTag = _channel.BasicConsume(_options.Value.ResponseQueueName, false, consumer);
+            _consumerTag = _channel.BasicConsume(_options.Value.ResponseQueueName, false, consumer);
         
-        _logger.Log(LogLevel.Information, "Stock Chat API is now listening for messages");
+            _logger.Log(LogLevel.Information, "Stock Chat API is now listening for messages");
+        }
+        catch (Exception e)
+        {
+            _logger.Log(LogLevel.Error, e, "Error while registering RabbitMQ listener");
+            _logger.Log(LogLevel.Information, "Retrying in 5 seconds");
+            Register();
+        }
     }
 
     private void OnStockDecodingResponseReceived(object? sender, BasicDeliverEventArgs e)
     {
-        var message = Encoding.UTF8.GetString(e.Body.ToArray());
-        var response = JsonConvert.DeserializeObject<StockResponse>(message);
-        
-        _logger.Log(LogLevel.Information, $"Received stock response: {message}");
-        
-        if (response == null) return;
-        
-        var chatMessage = new ChatMessage
+        try
         {
-            Id = Guid.NewGuid().ToString("D"),
-            ChatGroupId = response.ChatGroupId,
-            Message = response.Message,
-            SenderName = "StockBot",
-            SentTime = DateTime.Now
-        };
+            var message = Encoding.UTF8.GetString(e.Body.ToArray());
+            var response = JsonConvert.DeserializeObject<StockResponse>(message);
         
-        _hubContext.Clients.Group(response.ChatGroupId).SendAsync("SendStockChatMessage", chatMessage);
-        _channel.BasicAck(e.DeliveryTag, false);
+            _logger.Log(LogLevel.Information, $"Received stock response: {message}");
+        
+            if (response == null) return;
+        
+            var chatMessage = new ChatMessage
+            {
+                Id = Guid.NewGuid().ToString("D"),
+                ChatGroupId = response.ChatGroupId,
+                Message = response.Message,
+                SenderName = "StockBot",
+                SentTime = DateTime.Now
+            };
+        
+            _hubContext.Clients.Group(response.ChatGroupId).SendAsync("SendStockChatMessage", chatMessage);
+            _channel.BasicAck(e.DeliveryTag, false);
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogLevel.Error, ex, "Error while processing stock response");
+        }
     }
 
     public void Deregister()
     {
+        _logger.Log(LogLevel.Information, "Stock Chat API is now stopping connection to RabbitMQ");
+        
         _channel.BasicCancel(_consumerTag);
         
         _channel.Close();
