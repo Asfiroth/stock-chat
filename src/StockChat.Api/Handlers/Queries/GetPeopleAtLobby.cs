@@ -12,9 +12,9 @@ public class GetPeopleAtLobbyQuery : IQuery<List<UserConnectedMessage>>
 public class GetPeopleAtLobby : IQueryHandler<GetPeopleAtLobbyQuery, List<UserConnectedMessage>>
 {
     private readonly IRepository<UserConnectedMessage> _repository;
-    private readonly ILogger<GetChatMessages> _logger;
+    private readonly ILogger<GetPeopleAtLobby> _logger;
 
-    public GetPeopleAtLobby(IRepository<UserConnectedMessage> repository, ILogger<GetChatMessages> logger)
+    public GetPeopleAtLobby(IRepository<UserConnectedMessage> repository, ILogger<GetPeopleAtLobby> logger)
     {
         _repository = repository;
         _logger = logger;
@@ -22,18 +22,15 @@ public class GetPeopleAtLobby : IQueryHandler<GetPeopleAtLobbyQuery, List<UserCo
     
     public async ValueTask<List<UserConnectedMessage>> Handle(GetPeopleAtLobbyQuery query, CancellationToken cancellationToken)
     {
-        try
-        {
-            // for demo purposes we are getting from mongo db
-            // on real world we would register on a cache like redis
+        if (query is null)
+            throw new ArgumentNullException(nameof(query), "Invalid query");
+        
+        _logger.Log(LogLevel.Information, "Getting people at lobby");
             
-            var people = await _repository.GetAll();
-            return people;
-        }
-        catch (Exception e)
-        {
-            _logger.Log(LogLevel.Error, e, "Error getting people at lobby");
-            return new List<UserConnectedMessage>();
-        }
+        // for demo purposes we are getting from mongo db
+        // on real world we would register on a cache like redis
+            
+        var people = await _repository.GetAll();
+        return people;
     }
 }

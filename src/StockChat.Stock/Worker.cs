@@ -17,9 +17,9 @@ public class Worker : BackgroundService
     private IConnection _connection;
     private string _consumerTag;
     private readonly IOptions<RabbitOptions> _options;
-    private readonly StockValueCheckService _stockValueCheckService;
+    private readonly IStockValueCheckService _stockValueCheckService;
 
-    public Worker(ILogger<Worker> logger, IOptions<RabbitOptions> options, StockValueCheckService stockValueCheckService)
+    public Worker(ILogger<Worker> logger, IOptions<RabbitOptions> options, IStockValueCheckService stockValueCheckService)
     {
         _logger = logger;
         _options = options;

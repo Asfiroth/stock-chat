@@ -14,7 +14,7 @@ builder.ConfigureServices((hostContext, services) =>
         client.DefaultRequestHeaders.Clear();
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/csv"));
     });
-    services.AddScoped<StockValueCheckService>();
+    services.AddScoped<IStockValueCheckService, StockValueCheckService>();
     services.AddHostedService<Worker>();
     services.Configure<RabbitOptions>(hostContext.Configuration.GetSection("RabbitOptions"));
 });

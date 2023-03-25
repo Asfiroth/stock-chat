@@ -22,19 +22,18 @@ public class GetChatMessages : IQueryHandler<GetChatMessagesQuery, List<ChatMess
 
     public async ValueTask<List<ChatMessage>> Handle(GetChatMessagesQuery query, CancellationToken cancellationToken)
     {
-        try
-        {
-            // get from mongo db
-            var chatMessages = await _repository.GetFiltered(x => x.ChatGroupId == query.ChatGroupId);
+        if(query is null)
+            throw new ArgumentNullException(nameof(query), "Invalid query");
+            
+        if(string.IsNullOrWhiteSpace(query.ChatGroupId))
+            throw new ArgumentNullException(nameof(query.ChatGroupId), "Invalid chat group id");
+            
+        _logger.Log(LogLevel.Information, "Getting chat messages for group {0}", query.ChatGroupId);
+        // get from mongo db
+        var chatMessages = await _repository.GetFiltered(x => x.ChatGroupId == query.ChatGroupId);
         
-            var top50 = chatMessages.OrderBy(x => x.SentTime).Take(50).ToList();
+        var top50 = chatMessages.OrderBy(x => x.SentTime).Take(50).ToList();
         
-            return top50;
-        }
-        catch (Exception e)
-        {
-            _logger.Log(LogLevel.Error, e, "Error getting chat messages");
-            return new List<ChatMessage>();
-        }
+        return top50;
     }
 }

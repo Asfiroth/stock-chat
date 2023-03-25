@@ -20,31 +20,44 @@ public class ChatInputController : ControllerBase
     [HttpGet("{id}/messages")]
     public async Task<IActionResult> Get(string id)
     {
-
-        var chatGroupQuery = new GetChatGroupByMembersQuery
+        try
         {
-            FakeGroupId = id
-        };
+            var chatGroupQuery = new GetChatGroupByMembersQuery
+            {
+                FakeGroupId = id
+            };
         
-        var groupId = await _mediator.Send(chatGroupQuery);
+            var groupId = await _mediator.Send(chatGroupQuery);
         
-        var query = new GetChatMessagesQuery
+            var query = new GetChatMessagesQuery
+            {
+                ChatGroupId = groupId
+            };
+        
+            var messages = await _mediator.Send(query);
+        
+            return Ok(messages);
+        }
+        catch (Exception e)
         {
-            ChatGroupId = groupId
-        };
-        
-        var messages = await _mediator.Send(query);
-        
-        return Ok(messages);
+            return StatusCode(StatusCodes.Status500InternalServerError, e.Message);
+        }
     }
     
     [HttpGet("lobby")]
     public async Task<IActionResult> GetLobby()
     {
-        var query = GetPeopleAtLobbyQuery.Instance;
+        try
+        {
+            var query = GetPeopleAtLobbyQuery.Instance;
         
-        var people = await _mediator.Send(query);
+            var people = await _mediator.Send(query);
         
-        return Ok(people);
+            return Ok(people);
+        }
+        catch (Exception e)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, e.Message);
+        }
     }
 }

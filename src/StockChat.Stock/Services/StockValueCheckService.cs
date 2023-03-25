@@ -6,7 +6,7 @@ using StockChat.Stock.Models;
 
 namespace StockChat.Stock.Services;
 
-public class StockValueCheckService
+public class StockValueCheckService : IStockValueCheckService
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<StockValueCheckService> _logger;
@@ -29,13 +29,6 @@ public class StockValueCheckService
         _logger.Log(LogLevel.Information, "Received csv stream from stock api");
         
         _logger.Log(LogLevel.Information, $"# of bytes in stream: {csvStream.Length}");
-        
-        var configuration = new CsvConfiguration(CultureInfo.InvariantCulture)
-        {
-            Delimiter = ",",
-            Comment = '#',
-            HasHeaderRecord = false
-        };
         
         var stockShares = new List<StockShareResponse>();
         

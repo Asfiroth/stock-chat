@@ -23,35 +23,27 @@ public class RegisterPeopleAtLobby : ICommandHandler<RegisterPeopleAtLobbyComman
     
     public async ValueTask<Unit> Handle(RegisterPeopleAtLobbyCommand command, CancellationToken cancellationToken)
     {
-        try
+        // for demo purposes we are registering on mongo db
+        // on real world we would register on a cache like redis
+            
+        _logger.Log(LogLevel.Information, "Registering people at lobby {0}", command.UserId);
+            
+        var exists = await _repository.GetFiltered(x => x.UserId == command.UserId);
+            
+        if (exists.Any())
         {
-            // for demo purposes we are registering on mongo db
-            // on real world we would register on a cache like redis
-            
-            _logger.Log(LogLevel.Information, "Registering people at lobby {0}", command.UserId);
-            
-            var exists = await _repository.GetFiltered(x => x.UserId == command.UserId);
-            
-            if (exists.Any())
-            {
-                _logger.Log(LogLevel.Information, "User already registered at lobby {0}", command.UserId);
-                return default;
-            }
-            
-            var userConnectedMessage = new UserConnectedMessage
-            {
-                UserId = command.UserId,
-                UserName = command.UserName
-            };
-
-            await _repository.Register(userConnectedMessage);
-
+            _logger.Log(LogLevel.Information, "User already registered at lobby {0}", command.UserId);
             return default;
         }
-        catch (Exception e)
+            
+        var userConnectedMessage = new UserConnectedMessage
         {
-            _logger.Log(LogLevel.Error, e, "Error registering people at lobby");
-            return default;
-        }
+            UserId = command.UserId,
+            UserName = command.UserName
+        };
+
+        await _repository.Register(userConnectedMessage);
+
+        return default;
     }
 }

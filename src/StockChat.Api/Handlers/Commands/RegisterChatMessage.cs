@@ -29,27 +29,19 @@ public class RegisterChatMessage : ICommandHandler<RegisterChatMessageCommand, s
     {
         // register on mongo db
 
-        try
-        {
-            _logger.Log(LogLevel.Information, "Registering chat message {0}", command.Message);
+        _logger.Log(LogLevel.Information, "Registering chat message {0}", command.Message);
             
-            var chatMessage = new ChatMessage
-            {
-                ChatGroupId = command.ChatGroupId,
-                Message = command.Message,
-                SenderId = command.SenderId,
-                SenderName = command.SenderName,
-                SentTime = command.SentTime
-            };
-
-            var messageId = await _repository.Register(chatMessage);
-
-            return messageId;
-        }
-        catch (Exception e)
+        var chatMessage = new ChatMessage
         {
-            _logger.Log(LogLevel.Error, e, "Error registering chat message");
-            return string.Empty;
-        }
+            ChatGroupId = command.ChatGroupId,
+            Message = command.Message,
+            SenderId = command.SenderId,
+            SenderName = command.SenderName,
+            SentTime = command.SentTime
+        };
+
+        var messageId = await _repository.Register(chatMessage);
+
+        return messageId;
     }
 }
