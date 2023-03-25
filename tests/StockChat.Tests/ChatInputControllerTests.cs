@@ -9,8 +9,6 @@ namespace StockChat.Tests;
 
 public class ChatInputControllerTest
 {
-    // tests for ChatInputController
-    
     // tests for Get
     [Fact]
     public async Task GivenAValidChatGroupId_WhenICallTheGet_ThenItReturnsOkWithResponse()
