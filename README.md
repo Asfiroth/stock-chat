@@ -57,4 +57,30 @@ So... we end up with something like this:
     ```
     
 4.  Start the services.
+
     `docker compose up -d`
+
+## How to test
+
+There are three users registered on identity database:
+
+1. Alice Smith
+
+```
+username: AliceSmith@email.com
+password: Pass123$
+```
+
+2. Bob Smith
+
+```
+username: BobSmith@email.com
+password: Pass123$
+```
+
+3. John Wick
+
+```
+username: JohnWick@email.com
+password: Pass123$
+```
