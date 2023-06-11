@@ -34,7 +34,7 @@ So... we end up with something like this:
 
 1.  Generate a self-signed certificate.
 
-    NOTE: password used for this demo 'P@ssw0rd'
+    ***NOTE: password used for this demo 'P@ssw0rd'***
     
     `openssl req -x509 -newkey rsa:4096 -keyout localhost.key -out localhost.crt -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,DNS:web,DNS:identity,DNS:chat"`
     
